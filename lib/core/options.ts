@@ -1,18 +1,17 @@
 import merge from 'lodash.mergewith'
 import * as Integrations from '@sentry/integrations'
+import type { Consola } from 'consola'
+import type { Module } from '@nuxt/types'
+import type { IntegrationsConfiguration, LazyConfiguration, ResolvedModuleConfiguration, TracingConfiguration } from '../../types/sentry'
 import { canInitialize } from './utils'
 
 export const PLUGGABLE_INTEGRATIONS = ['CaptureConsole', 'Debug', 'Dedupe', 'ExtraErrorData', 'ReportingObserver', 'RewriteFrames', 'Vue']
 export const BROWSER_INTEGRATIONS = ['InboundFilters', 'FunctionToString', 'TryCatch', 'Breadcrumbs', 'GlobalHandlers', 'LinkedErrors', 'UserAgent']
 const SERVER_INTEGRATIONS = ['CaptureConsole', 'Debug', 'Dedupe', 'ExtraErrorData', 'RewriteFrames', 'Modules', 'Transaction']
 
-/** @param {import('../../types/sentry').IntegrationsConfiguration} integrations */
-const filterDisabledIntegration = integrations => Object.keys(integrations).filter(key => integrations[key])
+const filterDisabledIntegration = (integrations: IntegrationsConfiguration) => Object.keys(integrations).filter(key => integrations[key])
 
-/**
- * @param {string} packageName
- */
-async function getApiMethods (packageName) {
+async function getApiMethods (packageName: string) {
   const packageApi = await import(packageName)
 
   const apiMethods = []
@@ -26,11 +25,7 @@ async function getApiMethods (packageName) {
   return apiMethods
 }
 
-/**
- * @param {import('../../types/sentry').ResolvedModuleConfiguration} moduleOptions
- * @return {Promise<string | undefined>}
- */
-export async function resolveRelease (moduleOptions) {
+export async function resolveRelease (moduleOptions: ResolvedModuleConfiguration): Promise<string | undefined> {
   if (!('release' in moduleOptions.config)) {
     // Determine "config.release" automatically from local repo if not provided.
     try {
@@ -44,12 +39,7 @@ export async function resolveRelease (moduleOptions) {
   }
 }
 
-/**
- * @param {import('../../types/sentry').ResolvedModuleConfiguration} options
- * @param {string[]} apiMethods
- * @param {import('consola').Consola} logger
- */
-function resolveLazyOptions (options, apiMethods, logger) {
+function resolveLazyOptions (options: ResolvedModuleConfiguration, apiMethods: string[], logger: Consola) {
   if (options.lazy) {
     const defaultLazyOptions = {
       injectMock: true,
@@ -60,7 +50,7 @@ function resolveLazyOptions (options, apiMethods, logger) {
       webpackPreload: false
     }
 
-    options.lazy = /** @type {Required<import('../../types/sentry').LazyConfiguration>} */(
+    options.lazy = <Required<LazyConfiguration>>(
       merge({}, defaultLazyOptions, options.lazy)
     )
 
@@ -85,10 +75,7 @@ function resolveLazyOptions (options, apiMethods, logger) {
   }
 }
 
-/**
- * @param {import('../../types/sentry').ResolvedModuleConfiguration} options
- */
-function resolveTracingOptions (options) {
+function resolveTracingOptions (options: ResolvedModuleConfiguration) {
   if (options.tracing) {
     options.tracing = merge({
       tracesSampleRate: 1.0,
@@ -103,20 +90,17 @@ function resolveTracingOptions (options) {
       browserOptions: {}
     }, typeof options.tracing === 'boolean' ? {} : options.tracing)
     if (!options.config.tracesSampleRate) {
-      options.config.tracesSampleRate = options.tracing.tracesSampleRate
+      options.config.tracesSampleRate = (options.tracing as TracingConfiguration).tracesSampleRate
     }
   }
 }
 
-/**
- * @param {ThisParameterType<import('@nuxt/types').Module>} moduleContainer
- * @param {import('../../types/sentry').ResolvedModuleConfiguration} moduleOptions
- * @param {import('consola').Consola} logger
- * @return {Promise<any>}
- */
-export async function resolveClientOptions (moduleContainer, moduleOptions, logger) {
-  /** @type {import('../../types/sentry').ResolvedModuleConfiguration} */
-  const options = merge({}, moduleOptions)
+export async function resolveClientOptions (
+  moduleContainer: ThisParameterType<Module>,
+  moduleOptions: ResolvedModuleConfiguration,
+  logger: Consola
+): Promise<any> {
+  const options: ResolvedModuleConfiguration = merge({}, moduleOptions)
 
   options.clientConfig = merge({}, options.config, options.clientConfig)
 
@@ -154,15 +138,12 @@ export async function resolveClientOptions (moduleContainer, moduleOptions, logg
   }
 }
 
-/**
- * @param {ThisParameterType<import('@nuxt/types').Module>} moduleContainer
- * @param {import('../../types/sentry').ResolvedModuleConfiguration} moduleOptions
- * @param {import('consola').Consola} logger
- * @return {Promise<any>}
- */
-export async function resolveServerOptions (moduleContainer, moduleOptions, logger) {
-  /** @type {import('../../types/sentry').ResolvedModuleConfiguration} */
-  const options = merge({}, moduleOptions)
+export async function resolveServerOptions (
+  moduleContainer: ThisParameterType<Module>,
+  moduleOptions: ResolvedModuleConfiguration,
+  logger: Consola
+): Promise<any> {
+  const options: ResolvedModuleConfiguration = merge({}, moduleOptions)
 
   for (const name of Object.keys(options.serverIntegrations)) {
     if (!SERVER_INTEGRATIONS.includes(name)) {

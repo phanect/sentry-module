@@ -1,22 +1,24 @@
 import consola from 'consola'
 import merge from 'lodash.mergewith'
 import { Handlers as SentryHandlers, captureException, withScope } from '@sentry/node'
+import type { Module } from '@nuxt/types'
+import type { SentryCliPluginOptions } from '@sentry/webpack-plugin'
+import type { MergeWithCustomizer } from 'lodash'
+import type { ModuleConfiguration } from '../types'
+import type { ResolvedModuleConfiguration } from '../types/sentry'
 import { buildHook, initializeServerSentry, shutdownServerSentry, webpackConfigHook } from './core/hooks'
 import { boolToText, canInitialize, clientSentryEnabled, envToBool, serverSentryEnabled } from './core/utils'
 
 const logger = consola.withScope('nuxt:sentry')
 
-/** @type {import('lodash').MergeWithCustomizer} */
-function mergeWithCustomizer (objValue, srcValue) {
+const mergeWithCustomizer: MergeWithCustomizer = (objValue, srcValue) => {
   if (Array.isArray(objValue)) {
     return objValue.concat(srcValue)
   }
 }
 
-/** @type {import('@nuxt/types').Module<import('../types').ModuleConfiguration>} */
-export default function SentryModule (moduleOptions) {
-  /** @type {Required<import('../types/sentry').ModuleConfiguration>} */
-  const defaults = {
+const SentryModule: Module<ModuleConfiguration> = function (moduleOptions) {
+  const defaults: ModuleConfiguration = {
     lazy: false,
     dsn: process.env.SENTRY_DSN || '',
     disabled: envToBool(process.env.SENTRY_DISABLED) || false,
@@ -51,8 +53,7 @@ export default function SentryModule (moduleOptions) {
     requestHandlerConfig: {}
   }
 
-  /** @type {import('@sentry/webpack-plugin').SentryCliPluginOptions} */
-  const defaultsPublishRelease = {
+  const defaultsPublishRelease: SentryCliPluginOptions = {
     include: [],
     ignore: [
       'node_modules',
@@ -62,7 +63,7 @@ export default function SentryModule (moduleOptions) {
   }
 
   const topLevelOptions = this.options.sentry || {}
-  const options = /** @type {import('../types/sentry').ResolvedModuleConfiguration} */(
+  const options: ResolvedModuleConfiguration = <ResolvedModuleConfiguration>(
     merge({}, defaults, topLevelOptions, moduleOptions, mergeWithCustomizer)
   )
 
@@ -126,3 +127,5 @@ export default function SentryModule (moduleOptions) {
     this.nuxt.hook('webpack:config', webpackConfigs => webpackConfigHook(this, webpackConfigs, options, logger))
   }
 }
+
+export default SentryModule

@@ -1,6 +1,11 @@
 import { resolve, posix } from 'path'
 import merge from 'lodash.mergewith'
 import * as Sentry from '@sentry/node'
+import type { Module } from '@nuxt/types'
+import type { Consola } from 'consola'
+import type SentryWebpackPlugin from '@sentry/webpack-plugin'
+import type { SentryCliPluginOptions } from '@sentry/webpack-plugin'
+import type { ResolvedModuleConfiguration } from '../../types/sentry'
 import { canInitialize, clientSentryEnabled, envToBool, serverSentryEnabled } from './utils'
 import { resolveRelease, resolveClientOptions, resolveServerOptions } from './options'
 
@@ -9,12 +14,16 @@ const RESOLVED_RELEASE_FILENAME = 'sentry.release.config.js'
 /**
  * Resolves the options and creates the plugins and the templates at build time.
  *
- * @param      {ThisParameterType<import('@nuxt/types').Module>} moduleContainer
- * @param      {import('../../types/sentry').ResolvedModuleConfiguration} moduleOptions The module options
- * @param      {import('consola').Consola} logger The logger
- * @return     {Promise<void>}
+ * @param      moduleContainer
+ * @param      moduleOptions The module options
+ * @param      logger The logger
+ * @return     A promise object
  */
-export async function buildHook (moduleContainer, moduleOptions, logger) {
+export async function buildHook (
+  moduleContainer: ThisParameterType<Module>,
+  moduleOptions: ResolvedModuleConfiguration,
+  logger: Consola
+): Promise<void> {
   const release = await resolveRelease(moduleOptions)
 
   const pluginOptionClient = clientSentryEnabled(moduleOptions) ? (moduleOptions.lazy ? 'lazy' : 'client') : 'mocked'
@@ -47,23 +56,26 @@ export async function buildHook (moduleContainer, moduleOptions, logger) {
 /**
  * Handler for the 'webpack:config' hook
  *
- * @param      {ThisParameterType<import('@nuxt/types').Module>} moduleContainer
- * @param      {any[]} webpackConfigs The webpack configs
- * @param      {Required<import('../../types/sentry').ResolvedModuleConfiguration>} options The module options
- * @param      {import('consola').Consola} logger The logger
- * @return     {Promise<void>}
+ * @param      moduleContainer
+ * @param      webpackConfigs The webpack configs
+ * @param      options The module options
+ * @param      logger The logger
+ * @return     A promise object
  */
-export async function webpackConfigHook (moduleContainer, webpackConfigs, options, logger) {
-  /** @type {typeof import('@sentry/webpack-plugin')} */
-  let WebpackPlugin
+export async function webpackConfigHook (
+  moduleContainer: ThisParameterType<Module>,
+  webpackConfigs: any[],
+  options: ResolvedModuleConfiguration,
+  logger: Consola
+): Promise<void> {
+  let WebpackPlugin: typeof SentryWebpackPlugin
   try {
     WebpackPlugin = await (import('@sentry/webpack-plugin').then(m => m.default || m))
   } catch {
     throw new Error('The "@sentry/webpack-plugin" package must be installed as a dev dependency to use the "publishRelease" option.')
   }
 
-  /** @type {import('@sentry/webpack-plugin').SentryCliPluginOptions} */
-  const publishRelease = merge({}, options.publishRelease)
+  const publishRelease: SentryCliPluginOptions = merge({}, options.publishRelease)
   const nuxtOptions = moduleContainer.options
 
   if (!publishRelease.urlPrefix) {
@@ -131,12 +143,16 @@ export async function webpackConfigHook (moduleContainer, webpackConfigs, option
 /**
  * Initializes the sentry.
  *
- * @param      {ThisParameterType<import('@nuxt/types').Module>} moduleContainer
- * @param      {import('../../types/sentry').ResolvedModuleConfiguration} moduleOptions
- * @param      {import('consola').Consola} logger
- * @return     {Promise<void>}
+ * @param      moduleContainer
+ * @param      moduleOptions
+ * @param      logger
+ * @return     A promise object
  */
-export async function initializeServerSentry (moduleContainer, moduleOptions, logger) {
+export async function initializeServerSentry (
+  moduleContainer: ThisParameterType<Module>,
+  moduleOptions: ResolvedModuleConfiguration,
+  logger: Consola
+): Promise<void> {
   if (process.sentry) {
     return
   }
@@ -159,7 +175,7 @@ export async function initializeServerSentry (moduleContainer, moduleOptions, lo
   process.sentry = Sentry
 }
 
-export async function shutdownServerSentry () {
+export async function shutdownServerSentry (): Promise<void> {
   if (process.sentry) {
     await process.sentry.close()
     // @ts-ignore

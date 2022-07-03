@@ -46,7 +46,7 @@ export default defineNuxtModule({
         ExtraErrorData: {},
         ReportingObserver: {},
         RewriteFrames: {},
-        Vue: { attachProps: true, logErrors: this.options.dev }
+        Vue: { attachProps: true, logErrors: nuxt.options.dev }
       },
       serverIntegrations: {
         Dedupe: {},
@@ -55,7 +55,7 @@ export default defineNuxtModule({
         Transaction: {}
       },
       config: {
-        environment: this.options.dev ? 'development' : 'production'
+        environment: nuxt.options.dev ? 'development' : 'production'
       },
       serverConfig: {},
       clientConfig: {},
@@ -71,9 +71,8 @@ export default defineNuxtModule({
       configFile: '.sentryclirc'
     }
 
-    const topLevelOptions = this.options.sentry || {}
     const options: ResolvedModuleConfiguration = <ResolvedModuleConfiguration>(
-      merge({}, defaults, topLevelOptions, moduleOptions, mergeWithCustomizer)
+      merge({}, defaults, moduleOptions, mergeWithCustomizer)
     )
 
     if (options.publishRelease) {
@@ -83,11 +82,11 @@ export default defineNuxtModule({
 
     if (serverSentryEnabled(options)) {
       // @ts-ignore
-      this.nuxt.hook('render:setupMiddleware', app => app.use(SentryHandlers.requestHandler(options.requestHandlerConfig)))
+      nuxt.hook('render:setupMiddleware', app => app.use(SentryHandlers.requestHandler(options.requestHandlerConfig)))
       // @ts-ignore
-      this.nuxt.hook('render:errorMiddleware', app => app.use(SentryHandlers.errorHandler()))
+      nuxt.hook('render:errorMiddleware', app => app.use(SentryHandlers.errorHandler()))
       // @ts-ignore
-      this.nuxt.hook('generate:routeFailed', ({ route, errors }) => {
+      nuxt.hook('generate:routeFailed', ({ route, errors }) => {
         // @ts-ignore
         errors.forEach(({ error }) => withScope((scope) => {
           scope.setExtra('route', route)
@@ -113,7 +112,7 @@ export default defineNuxtModule({
       logger.info(`Sentry reporting is disabled (${why})`)
     }
 
-    this.nuxt.hook('build:before', () => buildHook(this, options, logger))
+    nuxt.hook('build:before', () => buildHook(this, options, logger))
 
     // This is messy but Nuxt provides many modes that it can be started with like:
     // - nuxt dev
@@ -124,14 +123,14 @@ export default defineNuxtModule({
     // pick from. This should ensure that server Sentry will only be initialized **after**
     // the release version has been determined and the options template created but before
     // the build is started (if building).
-    const initHook = this.options._build ? 'build:compile' : 'ready'
+    const initHook = nuxt.options._build ? 'build:compile' : 'ready'
     if (serverSentryEnabled(options)) {
-      this.nuxt.hook(initHook, () => initializeServerSentry(this, options, logger))
-      this.nuxt.hook('generate:done', () => shutdownServerSentry())
+      nuxt.hook(initHook, () => initializeServerSentry(this, options, logger))
+      nuxt.hook('generate:done', () => shutdownServerSentry())
     }
 
     // Enable publishing of sourcemaps
-    if (options.publishRelease && !options.disabled && !this.options.dev) {
+    if (options.publishRelease && !options.disabled && !nuxt.options.dev) {
       // @ts-ignore
       this.nuxt.hook('webpack:config', webpackConfigs => webpackConfigHook(this, webpackConfigs, options, logger))
     }
